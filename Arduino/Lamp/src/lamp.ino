@@ -18,7 +18,7 @@ const int BUTTON_PIN = A0;
 Adafruit_NeoPixel pixels(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 #define DELAYVAL 500
 
-int sensorValue = 0;
+int lampColor = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -42,47 +42,61 @@ void loop() {
   pixels.clear();
   
   heartbeat();
+
+  processColor();
   
-  Serial.write("\n");
+  pixels.setPixelColor(1, lampColor);
+
+
   pixels.setBrightness(25);
-    
-    if(sensorPressed()){
-      pixels.setPixelColor(0, pixels.Color(0,0,255));
-      Serial.println("a");
-    }
-    else{
-      pixels.setPixelColor(0, pixels.Color(150, 0, 0));
-      Serial.println("b");
-    }
-    pixels.show();
-    delay(DELAYVAL);
+   
+  if(sensorPressed()){
+    pixels.setPixelColor(0, pixels.Color(0,0,255));
+  }
+  else{
+    pixels.setPixelColor(0, pixels.Color(150, 0, 0));
+  }
+  pixels.show();
+  delay(DELAYVAL);
 }
 
 bool beat = false;
 void heartbeat(){
-  Serial.println(WiFi.status());
-  if(millis() % 5000){
-    httpGet();
-  }
+  int color = pixels.Color(0, 255, 0);
+  
   if(beat){
-    auto color = pixels.Color(255, 0, 0);
-    if(WiFi.status() == WL_CONNECTED){
-       color = pixels.Color(0, 255, 0);
+    if(WiFi.status() != WL_CONNECTED){
+      color = pixels.Color(255, 0, 0);
     }
     pixels.setPixelColor(NUMPIXELS - 1, color);
-    pixels.show();
   }
   beat = !beat;
 }
 
-void httpGet(){
+int loopCounter = 0;
+void processColor(){
+  if(loopCounter > 10){
+    loopCounter = 0;
+  }
+  else {
+    loopCounter++;
+    return;
+  }
   
-  WiFiClient client;  // or WiFiClientSecure for HTTPS
+  lampColor = httpGet().toInt();
+  Serial.println(lampColor);
+}
+
+String httpGet(){
+  
+  WiFiClientSecure client;  // or WiFiClientSecure for HTTPS
   HTTPClient httpClient;
 
-  httpClient.begin(client,  "http://arduinojson.org/example.json");
+  client.setInsecure();
 
-  Serial.printf_P(PSTR("%lu: Starting GET request to %s\r\n"), millis(),  "http://arduinojson.org/example.json");
+  httpClient.begin(client,  URL);
+
+  Serial.printf_P(PSTR("%lu: Starting GET request to %s\r\n"), millis(),  URL);
     String getResult = "";
     int respCode = httpClient.GET();
     if (respCode >= 400) {
@@ -95,6 +109,8 @@ void httpGet(){
         Serial.printf_P(PSTR("%lu: error: %s\r\n"), millis(), HTTPClient::errorToString(respCode).c_str());
     }
     httpClient.end();
+
+    return getResult;
 }
 
 bool sensorPressed(){
