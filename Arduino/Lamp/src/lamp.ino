@@ -46,12 +46,14 @@ void loop() {
   else{
     // --- every n seconds, query the current lamp state
     if(loopCounter == 0){
-      lampColor = httpGet().toInt();
+      lampColor = GetLampState().toInt();
     }
 
     // if sensor is pressed, call set state
     if(sensorPressed()){
       lampColor = pixels.Color(0,0,255);
+      showColor();
+      lampColor = SetLampState().toInt();
     }
   }
 
@@ -80,41 +82,37 @@ void showColor(){
   previousColor = lampColor;
 }
 
-// bool beat = false;
-// void heartbeat(){
-//   int color = pixels.Color(0, 255, 0);
-  
-//   if(beat){
-//     if(WiFi.status() != WL_CONNECTED){
-//       color = pixels.Color(255, 0, 0);
-//     }
-//     pixels.setPixelColor(NUMPIXELS - 1, color);
-//   }
-//   beat = !beat;
-// }
 
-// 
-// void processColor(){
-//   if(loopCounter > 10){
-//     loopCounter = 0;
-//   }
-//   else {
-//     loopCounter++;
-//     return;
-//   }
-  
-//   lampColor = httpGet().toInt();
-//   Serial.println(lampColor);
-// }
+String GetColor(){
+  return httpGet("Color");
+}
 
-String httpGet(){
+String GetLampState(){
+  String path = LAMP_ID;
+  path += "/";
+  path += USER_NAME;
+  return httpGet(path);
+}
+
+String SetLampState(){
+  String path = LAMP_ID;
+  path += "/";
+  path += USER_NAME;
+  return httpPatch(path);
+}
+
+
+String httpGet(String path){
   
   WiFiClientSecure client;  // or WiFiClientSecure for HTTPS
   HTTPClient httpClient;
 
   client.setInsecure();
 
-  httpClient.begin(client,  URL);
+  String url = URL;
+  url +=  path;
+
+  httpClient.begin(client,  url);
 
   Serial.printf_P(PSTR("%lu: Starting GET request to %s\r\n"), millis(),  URL);
     String getResult = "";
@@ -132,6 +130,36 @@ String httpGet(){
 
     return getResult;
 }
+
+String httpPatch(String path){
+  
+  WiFiClientSecure client;  // or WiFiClientSecure for HTTPS
+  HTTPClient httpClient;
+
+  client.setInsecure();
+
+  String url = URL;
+  url +=  path;
+
+  httpClient.begin(client,  url);
+
+  Serial.printf_P(PSTR("%lu: Starting PATCH request to %s\r\n"), millis(),  URL);
+    String patchResult = "";
+    int respCode = httpClient.PATCH("");
+    if (respCode >= 400) {
+        Serial.printf_P(PSTR("%lu: HTTP Error %d\r\n"), millis(), respCode);
+    } else if (respCode > 0) {
+        Serial.printf_P(PSTR("%lu: HTTP %d\r\n"), millis(), respCode);
+        patchResult = httpClient.getString();
+        Serial.printf_P(PSTR("\t%s\r\n"), patchResult.c_str());
+    } else {
+        Serial.printf_P(PSTR("%lu: error: %s\r\n"), millis(), HTTPClient::errorToString(respCode).c_str());
+    }
+    httpClient.end();
+
+    return patchResult;
+}
+
 
 bool sensorPressed(){
   return analogRead(BUTTON_PIN) > 100;
