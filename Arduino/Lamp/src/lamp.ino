@@ -51,8 +51,6 @@ void loop() {
 
     // if sensor is pressed, call set state
     if(sensorPressed()){
-      lampColor = pixels.Color(0,0,255);
-      showColor();
       lampColor = SetLampState().toInt();
     }
   }
